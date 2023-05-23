@@ -2,10 +2,11 @@ import React, { Component } from 'react';
 import { nanoid } from 'nanoid';
 import { ContactForm } from 'components/ContactForm';
 import { Filter } from 'components/Filter';
-import { GlobalStyle } from 'components/GlobalStyle';
-import * as S from './App.styled';
 import { ContactList } from 'components/ContactList';
+import { GlobalStyle } from 'components/GlobalStyle';
+import { getNormalizedName } from 'utils';
 import { storageKeys } from 'constants';
+import * as S from './App.styled';
 
 export class App extends Component {
   state = {
@@ -18,9 +19,15 @@ export class App extends Component {
       storageKeys.DATA_CONTACTS_L_STORAGE_KEY
     );
 
-    if (contacts) {
+    if (!contacts) {
+      return;
+    }
+
+    try {
       const parsedContacts = JSON.parse(contacts);
       this.setState({ contacts: parsedContacts });
+    } catch (error) {
+      console.log(error);
     }
   }
 
@@ -36,26 +43,28 @@ export class App extends Component {
     }
   }
 
-  changeFilter = e => {
+  handleChangeFilter = e => {
     const { value } = e.target;
 
     this.setState({ filter: value });
   };
 
-  addContact = ({ name, number }) => {
-    if (this.contactValidationByName(name)) {
-      alert(`${name} is already in contacts.`);
+  handleAddContact = ({ name, number }) => {
+    const normalizedName = getNormalizedName(name);
+
+    if (this.contactValidationByName(normalizedName)) {
+      alert(`${normalizedName} is already in contacts.`);
       return;
     }
 
-    const newContact = { id: nanoid(), name, number };
+    const newContact = { id: nanoid(), name: normalizedName, number };
 
     this.setState(({ contacts }) => ({
-      contacts: [newContact, ...contacts],
+      contacts: [...contacts, newContact],
     }));
   };
 
-  deleteContact = contactId => {
+  handleDeleteContact = contactId => {
     this.setState(({ contacts }) => ({
       contacts: contacts.filter(({ id }) => id !== contactId),
     }));
@@ -66,7 +75,7 @@ export class App extends Component {
     return contacts.some(({ name }) => name === newName);
   }
 
-  getFilteredContacts() {
+  getVisibleContacts() {
     const { contacts, filter } = this.state;
     const normalizedFilter = filter.toLowerCase().trim();
 
@@ -77,20 +86,20 @@ export class App extends Component {
 
   render() {
     const { filter } = this.state;
-    const filteredContacts = this.getFilteredContacts();
+    const visibleContacts = this.getVisibleContacts();
 
     return (
       <S.Container>
         <GlobalStyle />
 
         <S.PrimaryTitle>Phonebook</S.PrimaryTitle>
-        <ContactForm onSubmit={this.addContact} />
+        <ContactForm onSubmit={this.handleAddContact} />
 
         <S.SecondaryTitle>Contacts</S.SecondaryTitle>
-        <Filter value={filter} onChange={this.changeFilter} />
+        <Filter value={filter} onChangeFilter={this.handleChangeFilter} />
         <ContactList
-          contacts={filteredContacts}
-          onDeleteContact={this.deleteContact}
+          contacts={visibleContacts}
+          onDeleteContact={this.handleDeleteContact}
         />
       </S.Container>
     );
